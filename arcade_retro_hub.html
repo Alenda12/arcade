@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Arcade Studio - Portal de Jogos</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            arcade: ['"Press Start 2P"', 'cursive'],
+            sans: ['Fredoka', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              purple: '#8B5CF6',
+              pink: '#EC4899',
+              cyan: '#06B6D4',
+              yellow: '#F59E0B',
+              dark: '#0F172A',
+              cardDark: '#1E293B',
+            }
+          },
+          animation: {
+            'bounce-slow': 'bounce 2s infinite',
+            'pulse-glow': 'pulseGlow 2s infinite alternate',
+          },
+          keyframes: {
+            pulseGlow: {
+              '0%': { boxShadow: '0 0 15px rgba(139, 92, 246, 0.4)' },
+              '100%': { boxShadow: '0 0 30px rgba(236, 72, 153, 0.8)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Fredoka', sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    /* Custom Glassmorphism */
+    .glass {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .dark .glass {
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Neon Glow Effects */
+    .neon-border-purple {
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
+    }
+    .neon-border-pink {
+      box-shadow: 0 0 15px rgba(236, 72, 153, 0.5);
+    }
+    .neon-text-cyan {
+      text-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+    }
+
+    /* Card Flip Animation for Memory Game */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+    .transform-style-3d {
+      transform-style: preserve-3d;
+    }
+    .backface-hidden {
+      backface-visibility: hidden;
+    }
+    .rotate-y-180 {
+      transform: rotateY(180deg);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.1);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #8B5CF6;
+      border-radius: 4px;
+    }
+
+    /* Canvas background absolute full */
+    #bg-canvas, #confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+    }
+    #bg-canvas { z-index: -1; }
+    #confetti-canvas { z-index: 99; }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-300 flex flex-col justify-between overflow-x-hidden">
+
+  <!-- Canvases for FX -->
+  <canvas id="bg-canvas"></canvas>
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- NAVBAR -->
+  <header class="sticky top-0 z-40 glass border-b border-slate-200 dark:border-slate-800 px-4 py-3 shadow-md">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+      
+      <!-- Brand Logo -->
+      <div id="nav-logo" class="flex items-center space-x-3 cursor-pointer" onclick="switchView('hub')">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-purple to-brand-pink flex items-center justify-center text-white shadow-lg transform hover:scale-105 transition">
+          <i class="fa-solid font-arcade text-lg">🎮</i>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold font-arcade tracking-wide bg-gradient-to-r from-brand-purple via-brand-pink to-brand-cyan bg-clip-text text-transparent">
+            MINI ARCADE
+          </h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Portal Divertido de Jogos</p>
+        </div>
+      </div>
+
+      <!-- Controls & Navigation -->
+      <div class="flex items-center space-x-2 md:space-x-4">
+        <!-- Sound Toggle -->
+        <button id="sound-btn" onclick="toggleAudio()" class="p-2.5 rounded-xl bg-slate-200/80 dark:bg-slate-800/80 hover:bg-slate-300 dark:hover:bg-slate-700 transition text-slate-700 dark:text-slate-200" title="Alternar Som">
+          <i id="sound-icon" class="fa-solid fa-volume-high text-lg w-5 h-5 flex items-center justify-center"></i>
+        </button>
+
+        <!-- Achievements Modal Trigger -->
+        <button onclick="openModal('achievements-modal')" class="p-2.5 rounded-xl bg-slate-200/80 dark:bg-slate-800/80 hover:bg-slate-300 dark:hover:bg-slate-700 transition text-slate-700 dark:text-slate-200 relative" title="Conquistas">
+          <i class="fa-solid fa-trophy text-lg w-5 h-5 flex items-center justify-center text-amber-500"></i>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="theme-btn" onclick="toggleTheme()" class="p-2.5 rounded-xl bg-slate-200/80 dark:bg-slate-800/80 hover:bg-slate-300 dark:hover:bg-slate-700 transition text-slate-700 dark:text-slate-200" title="Tema Claro/Escuro">
+          <i id="theme-icon" class="fa-solid fa-moon text-lg w-5 h-5 flex items-center justify-center"></i>
+        </button>
+
+        <!-- Back to Hub Button (Hidden on Hub) -->
+        <button id="back-hub-btn" onclick="switchView('hub')" class="hidden px-4 py-2 rounded-xl bg-gradient-to-r from-brand-purple to-brand-pink text-white font-bold text-sm shadow-md hover:opacity-90 transition flex items-center space-x-2">
+          <i class="fa-solid fa-house"></i>
+          <span class="hidden sm:inline">Início</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT AREA -->
+  <main class="max-w-6xl mx-auto w-full px-4 py-6 flex-grow flex flex-col justify-center">
+
+    <!-- VIEW 1: GAME HUB (DASHBOARD) -->
+    <section id="view-hub" class="space-y-8 animate-fade-in">
+      
+      <!-- Hero Banner -->
+      <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 p-8 text-white shadow-2xl border border-purple-500/20">
+        <div class="absolute -right-10 -bottom-10 w-60 h-60 bg-brand-pink/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="relative z-10 max-w-2xl space-y-4">
+          <span class="px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-brand-pink/30 text-pink-300 rounded-full border border-pink-500/30">
+            100% Grátis & Sem Instalação
+          </span>
+          <h2 class="text-3xl sm:text-4xl font-extrabold font-arcade leading-tight text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-pink-300 to-cyan-300">
+            ESCOLHA SEU JOGO E DIVIRTA-SE!
+          </h2>
+          <p class="text-slate-300 text-sm sm:text-base">
+            Desafie suas habilidades, acumule pontos e desbloqueie conquistas nestes minijogos super legais.
+          </p>
+        </div>
+      </div>
+
+      <!-- Game Cards Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <!-- CARD 1: SNAKE -->
+        <div onclick="switchView('game-snake')" class="group relative rounded-2xl glass p-5 flex flex-col justify-between cursor-pointer transform hover:-translate-y-2 hover:shadow-2xl transition duration-300 border-2 border-transparent hover:border-emerald-500">
+          <div class="space-y-4">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white text-2xl shadow-lg group-hover:scale-110 transition">
+              <i class="fa-solid fa-staff-snake"></i>
+            </div>
+            <div>
+              <div class="flex justify-between items-center">
+                <h3 class="text-xl font-bold font-arcade text-emerald-500">Snake Neon</h3>
+                <span class="text-xs px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 font-bold">Arcade</span>
+              </div>
+              <p class="text-slate-500 dark:text-slate-400 text-xs mt-2 leading-relaxed">
+                A clássica cobrinha! Coma maçãs, colete power-ups e evite bater nas paredes.
+              </p>
+            </div>
+          </div>
+          <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+            <span>Recorde: <strong id="hub-score-snake" class="text-slate-800 dark:text-slate-200">0</strong></span>
+            <span class="text-emerald-500 font-bold group-hover:translate-x-1 transition flex items-center space-x-1">
+              <span>Jogar</span> <i class="fa-solid fa-arrow-right"></i>
+            </span>
+          </div>
+        </div>
+
+        <!-- CARD 2: MEMORY MATCH -->
+        <div onclick="switchView('game-memory')" class="group relative rounded-2xl glass p-5 flex flex-col justify-between cursor-pointer transform hover:-translate-y-2 hover:shadow-2xl transition duration-300 border-2 border-transparent hover:border-pink-500">
+          <div class="space-y-4">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-400 flex items-center justify-center text-white text-2xl shadow-lg group-hover:scale-110 transition">
+              <i class="fa-solid fa-brain"></i>
+            </div>
+            <div>
+              <div class="flex justify-between items-center">
+                <h3 class="text-xl font-bold font-arcade text-pink-500">Memória</h3>
+                <span class="text-xs px-2 py-0.5 rounded bg-pink-100 dark:bg-pink-950 text-pink-600 dark:text-pink-400 font-bold">Puzzle</span>
+              </div>
+              <p class="text-slate-500 dark:text-slate-400 text-xs mt-2 leading-relaxed">
+                Exercite seu cérebro encontrando os pares de ícones no menor tempo possível.
+              </p>
+            </div>
+          </div>
+          <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+            <span>Melhor Tempo: <strong id="hub-score-memory" class="text-slate-800 dark:text-slate-200">--s</strong></span>
+            <span class="text-pink-500 font-bold group-hover:translate-x-1 transition flex items-center space-x-1">
+              <span>Jogar</span> <i class="fa-solid fa-arrow-right"></i>
+            </span>
+          </div>
+        </div>
+
+        <!-- CARD 3: TIC TAC TOE -->
+        <div onclick="switchView('game-tictactoe')" class="group relative rounded-2xl glass p-5 flex flex-col justify-between cursor-pointer transform hover:-translate-y-2 hover:shadow-2xl transition duration-300 border-2 border-transparent hover:border-cyan-500">
+          <div class="space-y-4">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-400 flex items-center justify-center text-white text-2xl shadow-lg group-hover:scale-110 transition">
+              <i class="fa-solid fa-xmarks-lines"></i>
+            </div>
+            <div>
+              <div class="flex justify-between items-center">
+                <h3 class="text-xl font-bold font-arcade text-cyan-500">Jogo Velha</h3>
+                <span class="text-xs px-2 py-0.5 rounded bg-cyan-100 dark:bg-cyan-950 text-cyan-600 dark:text-cyan-400 font-bold">Estratégia</span>
+              </div>
+              <p class="text-slate-500 dark:text-slate-400 text-xs mt-2 leading-relaxed">
+                Desafie a Inteligência Artificial esperta ou jogue contra um amigo localmente!
+              </p>
+            </div>
+          </div>
+          <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+            <span>Vitórias IA: <strong id="hub-score-ttt" class="text-slate-800 dark:text-slate-200">0</strong></span>
+            <span class="text-cyan-500 font-bold group-hover:translate-x-1 transition flex items-center space-x-1">
+              <span>Jogar</span> <i class="fa-solid fa-arrow-right"></i>
+            </span>
+          </div>
+        </div>
+
+        <!-- CARD 4: POP BUBBLE -->
+        <div onclick="switchView('game-pop')" class="group relative rounded-2xl glass p-5 flex flex-col justify-between cursor-pointer transform hover:-translate-y-2 hover:shadow-2xl transition duration-300 border-2 border-transparent hover:border-amber-500">
+          <div class="space-y-4">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 flex items-center justify-center text-white text-2xl shadow-lg group-hover:scale-110 transition">
+              <i class="fa-solid fa-[#000] fa-bullseye"></i>
+            </div>
+            <div>
+              <div class="flex justify-between items-center">
+                <h3 class="text-xl font-bold font-arcade text-amber-500">Bubble Pop</h3>
+                <span class="text-xs px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 font-bold">Reflexo</span>
+              </div>
+              <p class="text-slate-500 dark:text-slate-400 text-xs mt-2 leading-relaxed">
+                Estoure os alvos rapidamente antes que o tempo acabe. Faça combos insanamente rápidos!
+              </p>
+            </div>
+          </div>
+          <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs text-slate-500 dark:text-slate-400">
+            <span>Recorde: <strong id="hub-score-pop" class="text-slate-800 dark:text-slate-200">0</strong></span>
+            <span class="text-amber-500 font-bold group-hover:translate-x-1 transition flex items-center space-x-1">
+              <span>Jogar</span> <i class="fa-solid fa-arrow-right"></i>
+            </span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Quick Stats Footer Banner -->
+      <div class="glass rounded-2xl p-6 flex flex-wrap justify-around items-center gap-4 text-center">
+        <div>
+          <span class="text-2xl font-bold text-brand-purple font-arcade" id="total-games-played">0</span>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Partidas Jogadas</p>
+        </div>
+        <div class="h-8 w-px bg-slate-300 dark:bg-slate-700 hidden sm:block"></div>
+        <div>
+          <span class="text-2xl font-bold text-brand-pink font-arcade" id="total-achievements-count">0/6</span>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Conquistas Obter</p>
+        </div>
+        <div class="h-8 w-px bg-slate-300 dark:bg-slate-700 hidden sm:block"></div>
+        <div>
+          <span class="text-2xl font-bold text-brand-cyan font-arcade">100%</span>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Diversão Garantida</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- VIEW 2: GAME 1 - SNAKE -->
+    <section id="view-game-snake" class="hidden space-y-4 max-w-xl mx-auto w-full">
+      <div class="flex justify-between items-center bg-slate-200/80 dark:bg-slate-800/80 p-4 rounded-2xl glass">
+        <div>
+          <span class="text-xs text-slate-500 dark:text-slate-400">Pontuação</span>
+          <p id="snake-score" class="text-2xl font-bold font-arcade text-emerald-500">0</p>
+        </div>
+        <div>
+          <span class="text-xs text-slate-500 dark:text-slate-400">Melhor</span>
+          <p id="snake-high" class="text-2xl font-bold font-arcade text-slate-700 dark:text-slate-300">0</p>
+        </div>
+        <div class="flex space-x-2">
+          <button onclick="initSnake()" class="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs transition">
+            <i class="fa-solid fa-rotate-right"></i> Reiniciar
+          </button>
+        </div>
+      </div>
+
+      <!-- Canvas Wrapper -->
+      <div class="relative aspect-square w-full rounded-2xl overflow-hidden glass border-2 border-emerald-500/30 flex items-center justify-center shadow-xl">
+        <canvas id="snakeCanvas" class="bg-slate-900 w-full h-full block"></canvas>
+        
+        <!-- Overlay Screen -->
+        <div id="snake-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-4">
+          <h2 id="snake-overlay-title" class="text-2xl font-arcade text-emerald-400">SNAKE NEON</h2>
+          <p id="snake-overlay-msg" class="text-sm text-slate-300">Use as setas do teclado ou os botões na tela para controlar a cobrinha!</p>
+          <button onclick="startSnake()" class="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:scale-105 text-white font-bold rounded-2xl shadow-lg transition">
+            <i class="fa-solid fa-play mr-2"></i> COMEÇAR
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile D-Pad Controls -->
+      <div class="grid grid-cols-3 gap-2 max-w-[200px] mx-auto pt-2 sm:hidden">
+        <div></div>
+        <button onclick="setSnakeDir('UP')" class="w-14 h-14 bg-slate-300 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-xl font-bold active:bg-emerald-500 active:text-white shadow">⬆️</button>
+        <div></div>
+        <button onclick="setSnakeDir('LEFT')" class="w-14 h-14 bg-slate-300 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-xl font-bold active:bg-emerald-500 active:text-white shadow">⬅️</button>
+        <button onclick="setSnakeDir('DOWN')" class="w-14 h-14 bg-slate-300 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-xl font-bold active:bg-emerald-500 active:text-white shadow">⬇️</button>
+        <button onclick="setSnakeDir('RIGHT')" class="w-14 h-14 bg-slate-300 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-xl font-bold active:bg-emerald-500 active:text-white shadow">➡️</button>
+      </div>
+    </section>
+
+    <!-- VIEW 3: GAME 2 - MEMORY MATCH -->
+    <section id="view-game-memory" class="hidden space-y-4 max-w-2xl mx-auto w-full">
+      <div class="flex justify-between items-center bg-slate-200/80 dark:bg-slate-800/80 p-4 rounded-2xl glass">
+        <div>
+          <span class="text-xs text-slate-500 dark:text-slate-400">Movimentos</span>
+          <p id="memory-moves" class="text-2xl font-bold font-arcade text-pink-500">0</p>
+        </div>
+        <div>
+          <span class="text-xs text-slate-500 dark:text-slate-400">Tempo</span>
+          <p id="memory-timer" class="text-2xl font-bold font-arcade text-slate-700 dark:text-slate-300">00:00</p>
+        </div>
+        <button onclick="initMemoryGame()" class="px-3 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-xl font-bold text-xs transition">
+          <i class="fa-solid fa-rotate-right"></i> Reiniciar
+        </button>
+      </div>
+
+      <!-- Memory Cards Grid -->
+      <div id="memory-grid" class="grid grid-cols-4 gap-3 sm:gap-4 p-2">
+        <!-- Cards generated dynamically via JS -->
+      </div>
+    </section>
+
+    <!-- VIEW 4: GAME 3 - TIC TAC TOE -->
+    <section id="view-game-tictactoe" class="hidden space-y-6 max-w-md mx-auto w-full">
+      <!-- Mode Selection & Scoreboard -->
+      <div class="bg-slate-200/80 dark:bg-slate-800/80 p-4 rounded-2xl glass space-y-3">
+        <div class="flex justify-center space-x-2">
+          <button id="ttt-mode-ai" onclick="setTTTMode('ai')" class="px-4 py-1.5 rounded-xl font-bold text-xs bg-cyan-500 text-white shadow">
+            Vs Computador
+          </button>
+          <button id="ttt-mode-pvp" onclick="setTTTMode('pvp')" class="px-4 py-1.5 rounded-xl font-bold text-xs bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+            2 Jogadores
+          </button>
+        </div>
+
+        <div class="flex justify-around items-center text-center pt-2 border-t border-slate-300 dark:border-slate-700">
+          <div>
+            <p class="text-xs text-slate-500">Jogador X</p>
+            <p id="ttt-score-x" class="text-xl font-arcade font-bold text-cyan-500">0</p>
+          </div>
+          <div>
+            <p class="text-xs text-slate-500">Empates</p>
+            <p id="ttt-score-draw" class="text-xl font-arcade font-bold text-slate-400">0</p>
+          </div>
+          <div>
+            <p id="ttt-label-o" class="text-xs text-slate-500">Computador O</p>
+            <p id="ttt-score-o" class="text-xl font-arcade font-bold text-pink-500">0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TTT Grid -->
+      <div class="grid grid-cols-3 gap-3 aspect-square w-full p-2 glass rounded-3xl border-2 border-cyan-500/30">
+        <button onclick="handleTTTClick(0)" class="ttt-cell h-full rounded-2xl bg-slate-300/50 dark:bg-slate-800/80 text-4xl font-arcade font-bold flex items-center justify-center hover:bg-cyan-500/10 transition"></button>
+        <button onclick="handleTTTClick(1)" class="ttt-cell h-full rounded-2xl bg-slate-300/50 dark:bg-slate-800/80 text-4xl font-arcade font-bold flex items-center justify-center hover:bg-cyan-500/10 transition"></button>
+        <button onclick="handleTTTClick(2)" class="ttt-cell h-full rounded-2xl bg-slate-300/50 dark:bg-slate-800/80 text-4xl font-arcade font-bold flex items-center justify-center hover:bg-cyan-500/10 transition"></button>
+        <button onclick="handleTTTClick(3)" class="ttt-cell h-full rounded-2xl bg-slate-300/50 dark:bg-slate-800/80 text-4xl font-arcade font-bold flex items-center justify-center hover:bg-cyan-500/10 transition"></button>
+        <button onclick="handleTTTClick(4)" class="ttt-cell h-full rounded-2xl bg-slate-300/50 dark:bg-slate-800/80 text-4xl font-arcade font-bold flex items-center justify-center hover:bg-cyan-500/10 transition"></button>
+        <button onclick="handleTTTClick(5)" class="ttt-cell h-full rounded-2xl bg-slate-300/50 dark:bg-slate-800/80 text-4xl font-arcade font-bold flex items-center justify-center hover:bg-cyan-500/10 transition"></button>
+        <button onclick="handleTTTClick(6)" class="ttt-cell h-full rounded-2xl bg-slate-300/50 dark:bg-slate-800/80 text-4xl font-arcade font-bold flex items-center justify-center hover:bg-cyan-500/10 transition"></button>
+        <button onclick="handleTTTClick(7)" class="ttt-cell h-full rounded-2xl bg-slate-300/50 dark:bg-slate-800/80 text-4xl font-arcade font-bold flex items-center justify-center hover:bg-cyan-500/10 transition"></button>
+        <button onclick="handleTTTClick(8)" class="ttt-cell h-full rounded-2xl bg-slate-300/50 dark:bg-slate-800/80 text-4xl font-arcade font-bold flex items-center justify-center hover:bg-cyan-500/10 transition"></button>
+      </div>
+
+      <div class="flex justify-center">
+        <button onclick="resetTTTBoard()" class="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl font-bold text-sm shadow-md transition">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Nova Rodada
+        </button>
+      </div>
+    </section>
+
+    <!-- VIEW 5: GAME 4 - BUBBLE POP -->
+    <section id="view-game-pop" class="hidden space-y-4 max-w-xl mx-auto w-full">
+      <div class="flex justify-between items-center bg-slate-200/80 dark:bg-slate-800/80 p-4 rounded-2xl glass">
+        <div>
+          <span class="text-xs text-slate-500 dark:text-slate-400">Pontos</span>
+          <p id="pop-score" class="text-2xl font-bold font-arcade text-amber-500">0</p>
+        </div>
+        <div>
+          <span class="text-xs text-slate-500 dark:text-slate-400">Combo</span>
+          <p id="pop-combo" class="text-2xl font-bold font-arcade text-pink-500">x1</p>
+        </div>
+        <div>
+          <span class="text-xs text-slate-500 dark:text-slate-400">Tempo</span>
+          <p id="pop-timer" class="text-2xl font-bold font-arcade text-slate-700 dark:text-slate-300">30s</p>
+        </div>
+      </div>
+
+      <!-- Bubble Game Arena -->
+      <div id="pop-arena" class="relative aspect-[4/3] w-full rounded-3xl glass overflow-hidden border-2 border-amber-500/30 bg-slate-900/40 shadow-xl cursor-crosshair">
+        <!-- Bubbles generated dynamically -->
+
+        <!-- Game Start/End Overlay -->
+        <div id="pop-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-4 z-10">
+          <h2 id="pop-overlay-title" class="text-2xl font-arcade text-amber-400">BUBBLE POP</h2>
+          <p id="pop-overlay-msg" class="text-sm text-slate-300 max-w-xs">Estoure o máximo de bolhas que conseguir em 30 segundos!</p>
+          <button onclick="startPopGame()" class="px-6 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 hover:scale-105 text-white font-bold rounded-2xl shadow-lg transition">
+            <i class="fa-solid fa-play mr-2"></i> COMEÇAR
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="glass border-t border-slate-200 dark:border-slate-800 py-4 px-4 text-center text-xs text-slate-500 dark:text-slate-400 mt-auto">
+    <p>Arcade Studio &copy; 2026 • Criado para diversão rápida e leve no navegador!</p>
+  </footer>
+
+  <!-- ACHIEVEMENTS MODAL -->
+  <div id="achievements-modal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass max-w-md w-full rounded-3xl p-6 space-y-6 shadow-2xl border border-slate-700 animate-scale-up">
+      <div class="flex justify-between items-center">
+        <h3 class="text-xl font-bold font-arcade text-amber-500 flex items-center space-x-2">
+          <i class="fa-solid fa-trophy"></i>
+          <span>CONQUISTAS</span>
+        </h3>
+        <button onclick="closeModal('achievements-modal')" class="text-slate-400 hover:text-slate-200 text-xl font-bold">&times;</button>
+      </div>
+
+      <div id="achievements-list" class="space-y-3 max-h-80 overflow-y-auto pr-1">
+        <!-- Generated dynamically via JS -->
+      </div>
+
+      <button onclick="closeModal('achievements-modal')" class="w-full py-2.5 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600 rounded-xl font-bold text-sm transition">
+        Fechar
+      </button>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT CODE CORE -->
+  <script>
+    /* ==========================================
+       1. GLOBAL STATE & AUDIO SYSTEM (Web Audio API)
+       ========================================== */
+    const state = {
+      soundEnabled: true,
+      currentView: 'hub',
+      scores: {
+        snake: 0,
+        memory: null, // lower is better
+        ttt: 0,
+        pop: 0
+      },
+      stats: {
+        totalPlayed: 0
+      },
+      achievements: {
+        snake10: false,
+        snake50: false,
+        memoryQuick: false,
+        tttWin: false,
+        pop100: false,
+        popCombo: false
+      }
+    };
+
+    // Web Audio API Synthesizer (No external MP3 files needed!)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(type) {
+      if (!state.soundEnabled) return;
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      const now = audioCtx.currentTime;
+
+      if (type === 'click') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, now);
+        osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+        osc.start(now);
+        osc.stop(now + 0.05);
+      } else if (type === 'eat') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(600, now + 0.1);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+        osc.start(now);
+        osc.stop(now + 0.1);
+      } else if (type === 'pop') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600 + Math.random() * 200, now);
+        osc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      } else if (type === 'win') {
+        const notes = [400, 500, 600, 800];
+        notes.forEach((freq, idx) => {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.connect(g);
+          g.connect(audioCtx.destination);
+          o.frequency.setValueAtTime(freq, now + idx * 0.08);
+          g.gain.setValueAtTime(0.15, now + idx * 0.08);
+          g.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.08 + 0.15);
+          o.start(now + idx * 0.08);
+          o.stop(now + idx * 0.08 + 0.15);
+        });
+      } else if (type === 'gameover') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      }
+    }
+
+    function toggleAudio() {
+      state.soundEnabled = !state.soundEnabled;
+      const icon = document.getElementById('sound-icon');
+      if (state.soundEnabled) {
+        icon.className = 'fa-solid fa-volume-high text-lg w-5 h-5 flex items-center justify-center';
+      } else {
+        icon.className = 'fa-solid fa-volume-xmark text-lg w-5 h-5 flex items-center justify-center text-red-400';
+      }
+      playSound('click');
+    }
+
+    /* ==========================================
+       2. THEME & VIEW SWITCHER
+       ========================================== */
+    function toggleTheme() {
+      const html = document.documentElement;
+      const icon = document.getElementById('theme-icon');
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        icon.className = 'fa-solid fa-sun text-lg w-5 h-5 flex items-center justify-center text-amber-500';
+        localStorage.setItem('arcade_theme', 'light');
+      } else {
+        html.classList.add('dark');
+        icon.className = 'fa-solid fa-moon text-lg w-5 h-5 flex items-center justify-center';
+        localStorage.setItem('arcade_theme', 'dark');
+      }
+      playSound('click');
+    }
+
+    function switchView(viewId) {
+      playSound('click');
+      state.currentView = viewId;
+
+      // Stop any running loop games
+      stopSnake();
+      stopPopGame();
+
+      // Views array
+      const views = ['hub', 'game-snake', 'game-memory', 'game-tictactoe', 'game-pop'];
+      views.forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if (v === viewId || (viewId.startsWith('game-') && v === viewId)) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+
+      // Toggle navbar back button
+      const backBtn = document.getElementById('back-hub-btn');
+      if (viewId === 'hub') {
+        backBtn.classList.add('hidden');
+      } else {
+        backBtn.classList.remove('hidden');
+      }
+
+      // Initialize specific view logic
+      if (viewId === 'game-snake') initSnake();
+      if (viewId === 'game-memory') initMemoryGame();
+      if (viewId === 'game-tictactoe') initTTT();
+      if (viewId === 'game-pop') initPopGame();
+
+      updateUI();
+    }
+
+    function openModal(id) {
+      playSound('click');
+      document.getElementById(id).classList.remove('hidden');
+      if (id === 'achievements-modal') renderAchievements();
+    }
+
+    function closeModal(id) {
+      playSound('click');
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    /* ==========================================
+       3. STORAGE & ACHIEVEMENTS SYSTEM
+       ========================================== */
+    const achievementsData = [
+      { id: 'snake10', title: 'Comilão Neon', desc: 'Alcance 10 pontos no Snake', icon: '🐍' },
+      { id: 'snake50', title: 'Mestre da Serpente', desc: 'Alcance 50 pontos no Snake', icon: '👑' },
+      { id: 'memoryQuick', title: 'Memória Ninja', desc: 'Vença o jogo de memória em menos de 45 segundos', icon: '⚡' },
+      { id: 'tttWin', title: 'Estrategista', desc: 'Vença uma partida contra a IA no Jogo da Velha', icon: '🎯' },
+      { id: 'pop100', title: 'Dedo Veloz', desc: 'Faça 100 pontos no Bubble Pop', icon: '🎈' },
+      { id: 'popCombo', title: 'Combo Master', desc: 'Alcance um Combo x5 no Bubble Pop', icon: '🔥' }
+    ];
+
+    function loadSavedData() {
+      // Theme
+      const savedTheme = localStorage.getItem('arcade_theme');
+      if (savedTheme === 'light') {
+        document.documentElement.classList.remove('dark');
+        document.getElementById('theme-icon').className = 'fa-solid fa-sun text-lg text-amber-500';
+      } else {
+        document.documentElement.classList.add('dark');
+      }
+
+      // Scores
+      const savedScores = localStorage.getItem('arcade_scores');
+      if (savedScores) {
+        state.scores = { ...state.scores, ...JSON.parse(savedScores) };
+      }
+
+      // Stats
+      const savedStats = localStorage.getItem('arcade_stats');
+      if (savedStats) {
+        state.stats = { ...state.stats, ...JSON.parse(savedStats) };
+      }
+
+      // Achievements
+      const savedAch = localStorage.getItem('arcade_achievements');
+      if (savedAch) {
+        state.achievements = { ...state.achievements, ...JSON.parse(savedAch) };
+      }
+
+      updateUI();
+    }
+
+    function saveData() {
+      localStorage.setItem('arcade_scores', JSON.stringify(state.scores));
+      localStorage.setItem('arcade_stats', JSON.stringify(state.stats));
+      localStorage.setItem('arcade_achievements', JSON.stringify(state.achievements));
+      updateUI();
+    }
+
+    function unlockAchievement(id) {
+      if (!state.achievements[id]) {
+        state.achievements[id] = true;
+        saveData();
+        triggerConfetti();
+        playSound('win');
+      }
+    }
+
+    function incrementPlayedGames() {
+      state.stats.totalPlayed += 1;
+      saveData();
+    }
+
+    function updateUI() {
+      // Dashboard Hub Scores
+      document.getElementById('hub-score-snake').textContent = state.scores.snake;
+      document.getElementById('hub-score-memory').textContent = state.scores.memory ? `${state.scores.memory}s` : '--s';
+      document.getElementById('hub-score-ttt').textContent = state.scores.ttt;
+      document.getElementById('hub-score-pop').textContent = state.scores.pop;
+
+      // Stats
+      document.getElementById('total-games-played').textContent = state.stats.totalPlayed;
+      
+      const unlockedCount = Object.values(state.achievements).filter(Boolean).length;
+      document.getElementById('total-achievements-count').textContent = `${unlockedCount}/${achievementsData.length}`;
+    }
+
+    function renderAchievements() {
+      const container = document.getElementById('achievements-list');
+      container.innerHTML = '';
+
+      achievementsData.forEach(ach => {
+        const isUnlocked = state.achievements[ach.id];
+        const item = document.createElement('div');
+        item.className = `p-3 rounded-2xl flex items-center space-x-3 border ${
+          isUnlocked 
+            ? 'bg-amber-500/10 border-amber-500/40 text-slate-800 dark:text-slate-100' 
+            : 'bg-slate-200/50 dark:bg-slate-800/40 border-slate-300 dark:border-slate-700 opacity-60'
+        }`;
+
+        item.innerHTML = `
+          <div class="text-2xl p-2 rounded-xl bg-slate-300/40 dark:bg-slate-700/40">${ach.icon}</div>
+          <div class="flex-grow">
+            <div class="flex justify-between items-center">
+              <h4 class="font-bold text-sm">${ach.title}</h4>
+              ${isUnlocked ? '<span class="text-xs text-amber-500 font-bold"><i class="fa-solid fa-check"></i> Concluído</span>' : '<span class="text-xs text-slate-400">Bloqueado</span>'}
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${ach.desc}</p>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    /* ==========================================
+       4. GAME 1: SNAKE NEON CODE
+       ========================================== */
+    let snakeCanvas, snakeCtx;
+    let snakeTimer = null;
+    let snake = [], snakeDir = 'RIGHT', nextDir = 'RIGHT';
+    let food = { x: 0, y: 0, type: 'normal' };
+    let snakeScore = 0;
+    const gridTile = 20;
+
+    function initSnake() {
+      snakeCanvas = document.getElementById('snakeCanvas');
+      snakeCtx = snakeCanvas.getContext('2d');
+      
+      // Responsive Canvas Setup
+      snakeCanvas.width = 400;
+      snakeCanvas.height = 400;
+
+      document.getElementById('snake-overlay').classList.remove('hidden');
+      document.getElementById('snake-overlay-title').textContent = 'SNAKE NEON';
+      document.getElementById('snake-overlay-msg').textContent = 'Pressione Começar para jogar!';
+      
+      document.getElementById('snake-score').textContent = '0';
+      document.getElementById('snake-high').textContent = state.scores.snake;
+    }
+
+    function startSnake() {
+      document.getElementById('snake-overlay').classList.add('hidden');
+      snake = [
+        { x: 5 * gridTile, y: 10 * gridTile },
+        { x: 4 * gridTile, y: 10 * gridTile },
+        { x: 3 * gridTile, y: 10 * gridTile }
+      ];
+      snakeDir = 'RIGHT';
+      nextDir = 'RIGHT';
+      snakeScore = 0;
+      document.getElementById('snake-score').textContent = '0';
+      spawnSnakeFood();
+      
+      incrementPlayedGames();
+
+      if (snakeTimer) clearInterval(snakeTimer);
+      snakeTimer = setInterval(updateSnake, 110);
+    }
+
+    function stopSnake() {
+      if (snakeTimer) clearInterval(snakeTimer);
+      snakeTimer = null;
+    }
+
+    function setSnakeDir(dir) {
+      if (dir === 'UP' && snakeDir !== 'DOWN') nextDir = 'UP';
+      if (dir === 'DOWN' && snakeDir !== 'UP') nextDir = 'DOWN';
+      if (dir === 'LEFT' && snakeDir !== 'RIGHT') nextDir = 'LEFT';
+      if (dir === 'RIGHT' && snakeDir !== 'LEFT') nextDir = 'RIGHT';
+    }
+
+    window.addEventListener('keydown', e => {
+      if (state.currentView !== 'game-snake') return;
+      if (e.key === 'ArrowUp' || e.key === 'w') setSnakeDir('UP');
+      if (e.key === 'ArrowDown' || e.key === 's') setSnakeDir('DOWN');
+      if (e.key === 'ArrowLeft' || e.key === 'a') setSnakeDir('LEFT');
+      if (e.key === 'ArrowRight' || e.key === 'd') setSnakeDir('RIGHT');
+    });
+
+    function spawnSnakeFood() {
+      const cols = snakeCanvas.width / gridTile;
+      const rows = snakeCanvas.height / gridTile;
+      food.x = Math.floor(Math.random() * cols) * gridTile;
+      food.y = Math.floor(Math.random() * rows) * gridTile;
+      food.type = Math.random() < 0.2 ? 'gold' : 'normal';
+    }
+
+    function updateSnake() {
+      snakeDir = nextDir;
+      const head = { ...snake[0] };
+
+      if (snakeDir === 'UP') head.y -= gridTile;
+      if (snakeDir === 'DOWN') head.y += gridTile;
+      if (snakeDir === 'LEFT') head.x -= gridTile;
+      if (snakeDir === 'RIGHT') head.x += gridTile;
+
+      // Wall Collision
+      if (head.x < 0 || head.x >= snakeCanvas.width || head.y < 0 || head.y >= snakeCanvas.height) {
+        return gameOverSnake();
+      }
+
+      // Self Collision
+      for (let segment of snake) {
+        if (head.x === segment.x && head.y === segment.y) {
+          return gameOverSnake();
+        }
+      }
+
+      snake.unshift(head);
+
+      // Eat Food
+      if (head.x === food.x && head.y === food.y) {
+        const pts = food.type === 'gold' ? 3 : 1;
+        snakeScore += pts;
+        document.getElementById('snake-score').textContent = snakeScore;
+        playSound('eat');
+
+        // Check Achievements
+        if (snakeScore >= 10) unlockAchievement('snake10');
+        if (snakeScore >= 50) unlockAchievement('snake50');
+
+        spawnSnakeFood();
+      } else {
+        snake.pop();
+      }
+
+      drawSnake();
+    }
+
+    function drawSnake() {
+      // Clear Canvas
+      snakeCtx.fillStyle = '#0f172a';
+      snakeCtx.fillRect(0, 0, snakeCanvas.width, snakeCanvas.height);
+
+      // Grid Pattern
+      snakeCtx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+      for (let i = 0; i < snakeCanvas.width; i += gridTile) {
+        snakeCtx.beginPath();
+        snakeCtx.moveTo(i, 0);
+        snakeCtx.lineTo(i, snakeCanvas.height);
+        snakeCtx.stroke();
+
+        snakeCtx.beginPath();
+        snakeCtx.moveTo(0, i);
+        snakeCtx.lineTo(snakeCanvas.width, i);
+        snakeCtx.stroke();
+      }
+
+      // Draw Snake Body
+      snake.forEach((seg, index) => {
+        if (index === 0) {
+          snakeCtx.fillStyle = '#10B981'; // Head
+        } else {
+          snakeCtx.fillStyle = '#34D399';
+        }
+        snakeCtx.shadowBlur = 8;
+        snakeCtx.shadowColor = '#10B981';
+        snakeCtx.beginPath();
+        snakeCtx.roundRect(seg.x + 1, seg.y + 1, gridTile - 2, gridTile - 2, 6);
+        snakeCtx.fill();
+        snakeCtx.shadowBlur = 0;
+      });
+
+      // Draw Food
+      snakeCtx.fillStyle = food.type === 'gold' ? '#F59E0B' : '#EF4444';
+      snakeCtx.shadowBlur = 12;
+      snakeCtx.shadowColor = food.type === 'gold' ? '#F59E0B' : '#EF4444';
+      snakeCtx.beginPath();
+      snakeCtx.arc(food.x + gridTile / 2, food.y + gridTile / 2, gridTile / 2 - 2, 0, Math.PI * 2);
+      snakeCtx.fill();
+      snakeCtx.shadowBlur = 0;
+    }
+
+    function gameOverSnake() {
+      stopSnake();
+      playSound('gameover');
+
+      if (snakeScore > state.scores.snake) {
+        state.scores.snake = snakeScore;
+        saveData();
+        triggerConfetti();
+      }
+
+      document.getElementById('snake-overlay').classList.remove('hidden');
+      document.getElementById('snake-overlay-title').textContent = 'FIM DE JOGO!';
+      document.getElementById('snake-overlay-msg').textContent = `Sua pontuação final foi: ${snakeScore}`;
+    }
+
+    /* ==========================================
+       5. GAME 2: MEMORY MATCH CODE
+       ========================================== */
+    const memoryIcons = ['🚀', '👾', '🎮', '🍕', '🐱', '🍩', '⚡', '💎'];
+    let memoryCards = [];
+    let flippedCards = [];
+    let matchedPairs = 0;
+    let memoryMoves = 0;
+    let memoryTimeSeconds = 0;
+    let memoryTimerInterval = null;
+
+    function initMemoryGame() {
+      if (memoryTimerInterval) clearInterval(memoryTimerInterval);
+      memoryTimerInterval = null;
+      
+      memoryMoves = 0;
+      matchedPairs = 0;
+      memoryTimeSeconds = 0;
+      flippedCards = [];
+
+      document.getElementById('memory-moves').textContent = '0';
+      document.getElementById('memory-timer').textContent = '00:00';
+
+      // Create Pairs
+      const deck = [...memoryIcons, ...memoryIcons].sort(() => Math.random() - 0.5);
+      const grid = document.getElementById('memory-grid');
+      grid.innerHTML = '';
+
+      deck.forEach((icon, idx) => {
+        const card = document.createElement('div');
+        card.className = 'aspect-square perspective-1000 cursor-pointer';
+        card.innerHTML = `
+          <div class="card-inner relative w-full h-full transform-style-3d transition-transform duration-500 rounded-2xl glass shadow-md flex items-center justify-center">
+            <div class="card-front absolute inset-0 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-400 flex items-center justify-center text-white text-2xl font-bold backface-hidden">
+              <i class="fa-solid fa-question"></i>
+            </div>
+            <div class="card-back absolute inset-0 rounded-2xl bg-slate-800 border-2 border-pink-500 flex items-center justify-center text-4xl rotate-y-180 backface-hidden">
+              ${icon}
+            </div>
+          </div>
+        `;
+
+        card.addEventListener('click', () => handleCardClick(card, icon));
+        grid.appendChild(card);
+      });
+    }
+
+    function startMemoryTimer() {
+      if (memoryTimerInterval) return;
+      memoryTimerInterval = setInterval(() => {
+        memoryTimeSeconds++;
+        const mins = String(Math.floor(memoryTimeSeconds / 60)).padStart(2, '0');
+        const secs = String(memoryTimeSeconds % 60).padStart(2, '0');
+        document.getElementById('memory-timer').textContent = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function handleCardClick(card, icon) {
+      const inner = card.querySelector('.card-inner');
+      if (flippedCards.length >= 2 || inner.classList.contains('rotate-y-180') || inner.classList.contains('matched')) {
+        return;
+      }
+
+      startMemoryTimer();
+      playSound('click');
+
+      inner.classList.add('rotate-y-180');
+      flippedCards.push({ card, icon });
+
+      if (flippedCards.length === 2) {
+        memoryMoves++;
+        document.getElementById('memory-moves').textContent = memoryMoves;
+
+        const [c1, c2] = flippedCards;
+        if (c1.icon === c2.icon) {
+          // Match
+          playSound('eat');
+          c1.card.querySelector('.card-inner').classList.add('matched');
+          c2.card.querySelector('.card-inner').classList.add('matched');
+          flippedCards = [];
+          matchedPairs++;
+
+          if (matchedPairs === memoryIcons.length) {
+            // Victory
+            clearInterval(memoryTimerInterval);
+            incrementPlayedGames();
+            playSound('win');
+            triggerConfetti();
+
+            if (!state.scores.memory || memoryTimeSeconds < state.scores.memory) {
+              state.scores.memory = memoryTimeSeconds;
+              saveData();
+            }
+
+            if (memoryTimeSeconds < 45) {
+              unlockAchievement('memoryQuick');
+            }
+          }
+        } else {
+          // No match, flip back
+          setTimeout(() => {
+            c1.card.querySelector('.card-inner').classList.remove('rotate-y-180');
+            c2.card.querySelector('.card-inner').classList.remove('rotate-y-180');
+            flippedCards = [];
+          }, 800);
+        }
+      }
+    }
+
+    /* ==========================================
+       6. GAME 3: TIC TAC TOE CODE
+       ========================================== */
+    let tttBoard = ['', '', '', '', '', '', '', '', ''];
+    let tttCurrentPlayer = 'X';
+    let tttMode = 'ai'; // 'ai' or 'pvp'
+    let tttScores = { x: 0, o: 0, draw: 0 };
+    let tttActive = true;
+
+    function initTTT() {
+      resetTTTBoard();
+    }
+
+    function setTTTMode(mode) {
+      tttMode = mode;
+      playSound('click');
+
+      const btnAI = document.getElementById('ttt-mode-ai');
+      const btnPVP = document.getElementById('ttt-mode-pvp');
+      const labelO = document.getElementById('ttt-label-o');
+
+      if (mode === 'ai') {
+        btnAI.className = 'px-4 py-1.5 rounded-xl font-bold text-xs bg-cyan-500 text-white shadow';
+        btnPVP.className = 'px-4 py-1.5 rounded-xl font-bold text-xs bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300';
+        labelO.textContent = 'Computador O';
+      } else {
+        btnPVP.className = 'px-4 py-1.5 rounded-xl font-bold text-xs bg-cyan-500 text-white shadow';
+        btnAI.className = 'px-4 py-1.5 rounded-xl font-bold text-xs bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300';
+        labelO.textContent = 'Jogador O';
+      }
+
+      tttScores = { x: 0, o: 0, draw: 0 };
+      updateTTTScores();
+      resetTTTBoard();
+    }
+
+    function resetTTTBoard() {
+      tttBoard = ['', '', '', '', '', '', '', '', ''];
+      tttCurrentPlayer = 'X';
+      tttActive = true;
+
+      const cells = document.querySelectorAll('.ttt-cell');
+      cells.forEach(cell => {
+        cell.textContent = '';
+        cell.className = 'ttt-cell h-full rounded-2xl bg-slate-300/50 dark:bg-slate-800/80 text-4xl font-arcade font-bold flex items-center justify-center hover:bg-cyan-500/10 transition';
+      });
+    }
+
+    function handleTTTClick(index) {
+      if (tttBoard[index] !== '' || !tttActive) return;
+
+      makeTTTMove(index, tttCurrentPlayer);
+
+      if (tttActive && tttMode === 'ai' && tttCurrentPlayer === 'O') {
+        setTimeout(makeAIMove, 400);
+      }
+    }
+
+    function makeTTTMove(index, player) {
+      tttBoard[index] = player;
+      playSound('click');
+
+      const cells = document.querySelectorAll('.ttt-cell');
+      cells[index].textContent = player;
+      cells[index].classList.add(player === 'X' ? 'text-cyan-500' : 'text-pink-500');
+
+      if (checkTTTWinner(player)) {
+        tttActive = false;
+        playSound('win');
+        triggerConfetti();
+
+        if (player === 'X') tttScores.x++;
+        else tttScores.o++;
+
+        if (player === 'X' && tttMode === 'ai') {
+          state.scores.ttt++;
+          unlockAchievement('tttWin');
+          saveData();
+        }
+
+        incrementPlayedGames();
+        updateTTTScores();
+      } else if (tttBoard.every(cell => cell !== '')) {
+        tttActive = false;
+        tttScores.draw++;
+        incrementPlayedGames();
+        updateTTTScores();
+      } else {
+        tttCurrentPlayer = tttCurrentPlayer === 'X' ? 'O' : 'X';
+      }
+    }
+
+    function makeAIMove() {
+      if (!tttActive) return;
+
+      // Smart Minimax / Basic Logic
+      let emptyIndices = tttBoard.map((val, idx) => val === '' ? idx : null).filter(val => val !== null);
+
+      // Check if AI can win immediately
+      for (let idx of emptyIndices) {
+        tttBoard[idx] = 'O';
+        if (checkTTTWinner('O')) {
+          tttBoard[idx] = '';
+          return makeTTTMove(idx, 'O');
+        }
+        tttBoard[idx] = '';
+      }
+
+      // Check if AI needs to block player
+      for (let idx of emptyIndices) {
+        tttBoard[idx] = 'X';
+        if (checkTTTWinner('X')) {
+          tttBoard[idx] = '';
+          return makeTTTMove(idx, 'O');
+        }
+        tttBoard[idx] = '';
+      }
+
+      // Random choice
+      const randomIdx = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+      makeTTTMove(randomIdx, 'O');
+    }
+
+    function checkTTTWinner(player) {
+      const wins = [
+        [0,1,2], [3,4,5], [6,7,8], // Rows
+        [0,3,6], [1,4,7], [2,5,8], // Cols
+        [0,4,8], [2,4,6]           // Diagonals
+      ];
+      return wins.some(w => w.every(i => tttBoard[i] === player));
+    }
+
+    function updateTTTScores() {
+      document.getElementById('ttt-score-x').textContent = tttScores.x;
+      document.getElementById('ttt-score-o').textContent = tttScores.o;
+      document.getElementById('ttt-score-draw').textContent = tttScores.draw;
+    }
+
+    /* ==========================================
+       7. GAME 4: BUBBLE POP CODE
+       ========================================== */
+    let popScore = 0;
+    let popCombo = 1;
+    let popTimer = 30;
+    let popInterval = null;
+    let bubbleSpawner = null;
+    let lastPopTime = 0;
+
+    function initPopGame() {
+      stopPopGame();
+      document.getElementById('pop-overlay').classList.remove('hidden');
+      document.getElementById('pop-overlay-title').textContent = 'BUBBLE POP';
+      document.getElementById('pop-score').textContent = '0';
+      document.getElementById('pop-combo').textContent = 'x1';
+      document.getElementById('pop-timer').textContent = '30s';
+      
+      const arena = document.getElementById('pop-arena');
+      arena.querySelectorAll('.bubble').forEach(b => b.remove());
+    }
+
+    function startPopGame() {
+      initPopGame();
+      document.getElementById('pop-overlay').classList.add('hidden');
+      
+      popScore = 0;
+      popCombo = 1;
+      popTimer = 30;
+      lastPopTime = Date.now();
+
+      incrementPlayedGames();
+
+      popInterval = setInterval(() => {
+        popTimer--;
+        document.getElementById('pop-timer').textContent = `${popTimer}s`;
+
+        if (popTimer <= 0) {
+          endPopGame();
+        }
+      }, 1000);
+
+      bubbleSpawner = setInterval(spawnBubble, 600);
+      spawnBubble();
+    }
+
+    function stopPopGame() {
+      if (popInterval) clearInterval(popInterval);
+      if (bubbleSpawner) clearInterval(bubbleSpawner);
+      popInterval = null;
+      bubbleSpawner = null;
+    }
+
+    function spawnBubble() {
+      const arena = document.getElementById('pop-arena');
+      if (!arena || document.getElementById('pop-overlay').classList.contains('hidden') === false) return;
+
+      const bubble = document.createElement('div');
+      const size = Math.floor(Math.random() * 30) + 40; // 40px to 70px
+      const x = Math.random() * (arena.clientWidth - size);
+      const y = Math.random() * (arena.clientHeight - size);
+
+      const colors = ['bg-amber-500', 'bg-pink-500', 'bg-cyan-500', 'bg-emerald-500', 'bg-purple-500'];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+
+      bubble.className = `bubble absolute rounded-full ${color} shadow-lg cursor-pointer transform scale-0 transition-transform duration-300 flex items-center justify-center text-white font-bold border-2 border-white/40`;
+      bubble.style.width = `${size}px`;
+      bubble.style.height = `${size}px`;
+      bubble.style.left = `${x}px`;
+      bubble.style.top = `${y}px`;
+
+      bubble.addEventListener('click', () => popBubble(bubble));
+
+      arena.appendChild(bubble);
+
+      // Pop in animation
+      requestAnimationFrame(() => {
+        bubble.classList.remove('scale-0');
+        bubble.classList.add('scale-100');
+      });
+
+      // Auto disappear after 2.5s
+      setTimeout(() => {
+        if (bubble.parentElement) {
+          bubble.classList.add('scale-0');
+          setTimeout(() => bubble.remove(), 200);
+        }
+      }, 2500);
+    }
+
+    function popBubble(bubble) {
+      playSound('pop');
+
+      const now = Date.now();
+      if (now - lastPopTime < 500) {
+        popCombo = Math.min(popCombo + 1, 5);
+      } else {
+        popCombo = 1;
+      }
+      lastPopTime = now;
+
+      popScore += 10 * popCombo;
+      document.getElementById('pop-score').textContent = popScore;
+      document.getElementById('pop-combo').textContent = `x${popCombo}`;
+
+      if (popCombo >= 5) unlockAchievement('popCombo');
+      if (popScore >= 100) unlockAchievement('pop100');
+
+      bubble.remove();
+    }
+
+    function endPopGame() {
+      stopPopGame();
+      playSound('gameover');
+
+      if (popScore > state.scores.pop) {
+        state.scores.pop = popScore;
+        saveData();
+        triggerConfetti();
+      }
+
+      document.getElementById('pop-overlay').classList.remove('hidden');
+      document.getElementById('pop-overlay-title').textContent = 'FIM DE TEMPO!';
+      document.getElementById('pop-overlay-msg').textContent = `Sua pontuação final foi: ${popScore}`;
+    }
+
+    /* ==========================================
+       8. FX & CANVAS BACKGROUND PARTICLES / CONFETTI
+       ========================================== */
+    // Background Animated Particles
+    const bgCanvas = document.getElementById('bg-canvas');
+    const bgCtx = bgCanvas.getContext('2d');
+    let bgParticles = [];
+
+    function resizeBgCanvas() {
+      bgCanvas.width = window.innerWidth;
+      bgCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeBgCanvas);
+    resizeBgCanvas();
+
+    for (let i = 0; i < 40; i++) {
+      bgParticles.push({
+        x: Math.random() * bgCanvas.width,
+        y: Math.random() * bgCanvas.height,
+        r: Math.random() * 3 + 1,
+        dx: (Math.random() - 0.5) * 0.5,
+        dy: (Math.random() - 0.5) * 0.5,
+        color: ['rgba(139, 92, 246, 0.2)', 'rgba(236, 72, 153, 0.2)', 'rgba(6, 182, 212, 0.2)'][Math.floor(Math.random() * 3)]
+      });
+    }
+
+    function animateBg() {
+      bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+      bgParticles.forEach(p => {
+        p.x += p.dx;
+        p.y += p.dy;
+
+        if (p.x < 0) p.x = bgCanvas.width;
+        if (p.x > bgCanvas.width) p.x = 0;
+        if (p.y < 0) p.y = bgCanvas.height;
+        if (p.y > bgCanvas.height) p.y = 0;
+
+        bgCtx.fillStyle = p.color;
+        bgCtx.beginPath();
+        bgCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        bgCtx.fill();
+      });
+      requestAnimationFrame(animateBg);
+    }
+    animateBg();
+
+    // Confetti System
+    const confettiCanvas = document.getElementById('confetti-canvas');
+    const confettiCtx = confettiCanvas.getContext('2d');
+    let confettiList = [];
+
+    function resizeConfettiCanvas() {
+      confettiCanvas.width = window.innerWidth;
+      confettiCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeConfettiCanvas);
+    resizeConfettiCanvas();
+
+    function triggerConfetti() {
+      confettiList = [];
+      const colors = ['#8B5CF6', '#EC4899', '#06B6D4', '#F59E0B', '#10B981'];
+
+      for (let i = 0; i < 100; i++) {
+        confettiList.push({
+          x: window.innerWidth / 2,
+          y: window.innerHeight / 2,
+          vx: (Math.random() - 0.5) * 12,
+          vy: (Math.random() - 0.8) * 12,
+          size: Math.random() * 8 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rotationSpeed: (Math.random() - 0.5) * 10
+        });
+      }
+    }
+
+    function animateConfetti() {
+      confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+
+      confettiList.forEach((c, index) => {
+        c.x += c.vx;
+        c.y += c.vy;
+        c.vy += 0.2; // Gravity
+        c.rotation += c.rotationSpeed;
+
+        confettiCtx.save();
+        confettiCtx.translate(c.x, c.y);
+        confettiCtx.rotate((c.rotation * Math.PI) / 180);
+        confettiCtx.fillStyle = c.color;
+        confettiCtx.fillRect(-c.size / 2, -c.size / 2, c.size, c.size);
+        confettiCtx.restore();
+
+        if (c.y > window.innerHeight) confettiList.splice(index, 1);
+      });
+
+      requestAnimationFrame(animateConfetti);
+    }
+    animateConfetti();
+
+    /* Initial Setup Load */
+    window.onload = () => {
+      loadSavedData();
+    };
+  </script>
+</body>
+</html>
